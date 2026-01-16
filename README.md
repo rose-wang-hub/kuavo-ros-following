@@ -77,15 +77,24 @@ source devel/setup.bash
 
 ### 一键启动完整系统
 
+**注意：需要同时运行两个launch文件（在不同的终端中）**
+
 ```bash
-# 启动视觉跟踪（在第一个终端）
+# 终端1：启动视觉跟踪系统
 roslaunch kuavo_person_follow vision_tracking.launch
 
-# 启动雷达跟随系统（在第二个终端）
+# 终端2：启动雷达跟随系统（包含LIDAR安全回避）
 roslaunch kuavo_person_follow follow_robot.launch
 ```
 
-这个启动文件会自动启动：
+**为什么需要两个launch文件？**
+
+- `vision_tracking.launch`：负责视觉检测和跟踪，发布`/person_track/vision_state`
+- `follow_robot.launch`：负责LIDAR驱动、障碍物检测和运动控制，订阅视觉状态进行跟随
+
+两个系统协同工作：视觉提供目标位置，LIDAR确保安全跟随。
+
+`follow_robot.launch` 会自动启动：
 - LIVOX LIDAR 驱动
 - 消息转换器 (CustomMsg → PointCloud2)
 - 点云到激光扫描转换
