@@ -47,12 +47,33 @@ cd kuavo-ros-following
 # 安装 ROS 包
 sudo apt-get install ros-noetic-pointcloud-to-laserscan
 
+# 安装 LIVOX ROS 驱动
+# 方法1：从源码安装（推荐）
+git clone https://github.com/Livox-SDK/livox_ros_driver2.git
+cd livox_ros_driver2
+git checkout ros1
+./build.sh ROS1
+source ./devel/setup.bash
+
+# 方法2：如果已有预编译包，直接source对应的setup.bash
+
 # 安装 Python 依赖
 pip install ultralytics opencv-python pyrealsense2 torch torchvision
 ```
 
-3. 构建工作空间：
+3. 配置雷达：
 ```bash
+# 确保雷达连接正常
+# 检查雷达设备是否被识别
+ls /dev/ttyUSB*  # 或其他串口设备
+
+# 测试雷达连接（根据你的雷达型号调整参数）
+roslaunch livox_ros_driver2 msg_MID360.launch
+```
+
+4. 构建工作空间：
+```bash
+cd kuavo-ros-following
 catkin_make
 source devel/setup.bash
 ```
@@ -112,6 +133,65 @@ roslaunch kuavo_person_follow vision_tracking.launch
 roslaunch kuavo_person_follow follow_robot.launch
 ```
 
+## 测试和验证
+
+### 1. 测试雷达连接
+```bash
+# 启动雷达驱动
+roslaunch livox_ros_driver2 msg_MID360.launch
+
+# 检查话题
+rostopic list | grep livox
+
+# 查看雷达数据
+rostopic echo /livox/lidar
+```
+
+### 2. 测试消息转换
+```bash
+# 启动转换器
+rosrun livox_ros_driver2 livox_converter.py
+
+# 检查PointCloud2话题
+rostopic list | grep cloud
+
+# 查看转换后的点云数据
+rostopic echo /livox/cloud
+```
+
+### 3. 测试激光扫描转换
+```bash
+# 启动激光扫描转换
+roslaunch pointcloud_to_laserscan sample_node.launch cloud_in:=/livox/cloud
+
+# 检查激光扫描话题
+rostopic list | grep scan
+
+# 查看激光扫描数据
+rostopic echo /scan
+```
+
+### 4. 测试视觉跟踪
+```bash
+# 启动视觉跟踪
+roslaunch kuavo_person_follow vision_tracking.launch
+
+# 检查视觉状态话题
+rostopic list | grep person_track
+```
+
+### 5. 完整系统测试
+```bash
+# 终端1：视觉跟踪
+roslaunch kuavo_person_follow vision_tracking.launch
+
+# 终端2：跟随控制
+roslaunch kuavo_person_follow follow_robot.launch
+
+# 监控控制命令
+rostopic echo /cmd_vel
+```
+
 ## 消息接口
 
 ### 订阅话题
@@ -152,18 +232,81 @@ self.max_follow_dist = 3.0
 
 ### 常见问题
 
-1. **LIDAR 数据不显示**: 检查 LIVOX 驱动是否正确启动，确认网络连接
-2. **跟踪框不显示**: 确保 RealSense 摄像头正常工作，检查 YOLO 模型加载
-3. **机器人不跟随**: 检查 `/cmd_vel` 话题是否有数据输出，确认 PID 参数设置
+1. **找不到 livox_ros_driver2 包**:
+   ```bash
+   # 确保已安装并source了livox驱动的工作空间
+   source /path/to/livox_ws/devel/setup.bash
+   ```
+
+2. **雷达无法连接**:
+   ```bash
+   # 检查串口权限
+   sudo chmod 666 /dev/ttyUSB*
+   
+   # 检查雷达IP和端口配置
+   # 修改 livox 配置文件中的雷达参数
+   ```
+
+3. **LIDAR 数据不显示**:
+   ```bash
+   # 检查雷达是否正确连接
+   rostopic list | grep livox
+   
+   # 查看雷达驱动日志
+   rosnode info /livox_lidar_publisher2
+   ```
+
+4. **消息转换失败**:
+   ```bash
+   # 检查 livox_converter.py 是否可执行
+   ls -la /path/to/livox_ws/src/livox_ros_driver2/scripts/livox_converter.py
+   
+   # 手动测试转换器
+   rosrun livox_ros_driver2 livox_converter.py
+   ```
+
+5. **激光扫描无数据**:
+   ```bash
+   # 检查点云到激光转换的参数
+   rostopic echo /livox/cloud | head -20
+   
+   # 调整转换参数（高度范围等）
+   ```
+
+6. **跟踪框不显示**:
+   ```bash
+   # 检查摄像头连接
+   ls /dev/video*
+   
+   # 测试 YOLO 模型
+   python3 -c "from ultralytics import YOLO; YOLO('yolov8n.pt')"
+   ```
+
+7. **机器人不跟随**:
+   ```bash
+   # 检查视觉状态话题
+   rostopic echo /person_track/vision_state
+   
+   # 检查控制命令输出
+   rostopic echo /cmd_vel
+   
+   # 确认 PID 参数设置
+   ```
 
 ### 日志查看
 
 ```bash
-# 查看控制器日志
+# 查看所有ROS日志
 rostopic echo /rosout
 
-# 查看 LIDAR 数据
-rostopic echo /scan
+# 查看特定节点日志
+rosnode info /follow_controller
+
+# 查看LIDAR数据
+rostopic echo /scan | head -20
+
+# 查看控制命令
+rostopic echo /cmd_vel
 ```
 
 ## 开发说明
