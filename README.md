@@ -59,9 +59,29 @@ source devel/setup.bash
 
 ## 使用方法
 
+### 环境设置
+
+在使用系统之前，需要确保ROS环境正确配置，包括livox驱动：
+
+```bash
+# 设置ROS环境
+source /opt/ros/noetic/setup.bash
+
+# 设置livox驱动环境（假设安装在BIGAI目录）
+source /home/kuavo/BIGAI/livox_driver/devel/setup.bash
+
+# 设置跟随系统环境
+cd /home/kuavo/kuavo-ros-following
+source devel/setup.bash
+```
+
 ### 一键启动完整系统
 
 ```bash
+# 启动视觉跟踪（在第一个终端）
+roslaunch kuavo_person_follow vision_tracking.launch
+
+# 启动雷达跟随系统（在第二个终端）
 roslaunch kuavo_person_follow follow_robot.launch
 ```
 
@@ -69,26 +89,18 @@ roslaunch kuavo_person_follow follow_robot.launch
 - LIVOX LIDAR 驱动
 - 消息转换器 (CustomMsg → PointCloud2)
 - 点云到激光扫描转换
-- 视觉跟踪节点
-- 跟随控制器
+- 跟随控制器（包含雷达安全回避）
 
 ### 单独启动组件
 
-1. 启动 LIDAR 和转换器：
+1. 启动视觉跟踪：
 ```bash
-roslaunch livox_ros_driver2 livox_lidar.launch
-rosrun livox_ros_driver2 livox_converter.py
-roslaunch pointcloud_to_laserscan sample_node.launch
+roslaunch kuavo_person_follow vision_tracking.launch
 ```
 
-2. 启动视觉跟踪：
+2. 启动雷达跟随系统：
 ```bash
-rosrun kuavo_person_follow vision_person_tracker_node.py
-```
-
-3. 启动控制器：
-```bash
-rosrun kuavo_person_follow follow_controller_node.py
+roslaunch kuavo_person_follow follow_robot.launch
 ```
 
 ## 消息接口
